@@ -1,0 +1,459 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title><![CDATA[Drew Schrauf]]></title><description><![CDATA[Drew Schrauf]]></description><link>http://drewschrauf.com/</link><generator>Ghost v0.4.0</generator><lastBuildDate>Thu, 28 Aug 2014 14:21:30 GMT</lastBuildDate><atom:link href="http://drewschrauf.com/rss/" rel="self" type="application/rss+xml"/><author><![CDATA[Drew Schrauf]]></author><ttl>60</ttl><item><title><![CDATA[Working Without Inline Templates in Ember.js]]></title><description><![CDATA[<p>If you've attempted to upgrade your Ember.js 1.0 Prerelease 1 project to Prerelease 2, you might have noticed a rather major feature missing. Until now, you've always been able to slip in and out of an Ember "dynamic content area" simply by throwing in a Handlebars template and not giving it a name:</p>
+
+<pre><code>&lt;div&gt;First element&lt;/div&gt;
+
+&lt;script type="text/x-handlebars"&gt;
+    Second element
+&lt;/script&gt;
+
+&lt;div&gt;Third element&lt;/div&gt;
+</code></pre>
+
+<p>Previously, the above would render like:</p>
+
+<pre><code>First element
+Second element
+Third element
+</code></pre>
+
+<p>However, as of Prerelease 2 it looks like this instead:</p>
+
+<pre><code>First element
+Third element
+Second element
+</code></pre>
+
+<p>The reason for this is that Ember no longer supports these inline templates and requires all templates to be named and instantiated individually. Not naming a template will automatically give it the default name "application" and it will be appended to the Ember application's <code>rootElement</code> (<code>body</code> by default). This new behaviour was mentioned in <a href='http://emberjs.com/blog/2012/10/25/ember-1-0-pre2/' >Ember Prerelease 2's changelog</a>.</p>
+
+<p>Working with this new structure is pretty easy and shouldn't really affect the way you currently work. The trick is to simply throw in a placeholder element where you wish to append your content, add a <code>data-template-name</code> to your <code>script</code> tag and then create and instantiate your <code>View</code> in your controller's <code>init</code> method. To get my original example to work, I modified the markup to look like this instead:</p>
+
+<pre><code>&lt;div&gt;First element&lt;/div&gt;
+&lt;div id="second-placeholder"&gt;&lt;/div&gt;
+&lt;div&gt;Third element&lt;/div&gt;
+
+&lt;script type="text/x-handlebars" data-template-name="second-item-template"&gt;
+    Second element
+&lt;/script&gt;
+</code></pre>
+
+<p>I then instantiated a new <code>View</code> when my controller was initializing:</p>
+
+<pre><code>App.MyController = Ember.Object.create({
+    init: function() {
+        Ember.View.create({
+            templateName: 'second-item-template'
+        }).appendTo('#second-placeholder');
+    }
+});
+</code></pre>
+
+<p>The application now renders just as we initially intended. I've thrown up an <a href='http://jsfiddle.net/drewschrauf/nn4Bd/' >example of this on JSFiddle</a> using a classic todo list setup.</p>
+
+<p>With all that said, when I <a href='https://github.com/emberjs/ember.js/issues/1508' >mistakenly rose this as a bug</a> I was cautioned by <a href='https://github.com/trek' >trek</a> with the following:</p>
+
+<blockquote>
+  <p>Sidebar: if you're doing this, though, it's likely pattern-smell your particular app isn't the style of application Ember is intended to facilitate…</p>
+  
+  <p>If you need to augment an existing document with some additional behavior you can do this with Ember, but Backbone and Angular were made specifically to make that task easier. If you want to take over the full screen for apps that are competitive with native apps you can do this with Backbone, but Ember is made specifically for it.</p>
+</blockquote>
+
+<p>In short, if you're just augmenting a page with a couple of dynamic parts then maybe Ember isn't your beast. However, if you have a rich app that just requires a small amount of additional information on the page (e.g. an element in the nav bar showing how many items are currently in your shopping cart) then the method described above should suit you nicely.</p>]]></description><link>http://drewschrauf.com/working-without-inline-templates-in-ember-js/</link><guid isPermaLink="false">8d1150dd-fb11-4a64-b151-69ef847d8e95</guid><category><![CDATA[ember]]></category><dc:creator><![CDATA[Drew Schrauf]]></dc:creator><pubDate>Wed, 28 Nov 2012 01:00:00 GMT</pubDate></item><item><title><![CDATA[Nesting @each Operators in Ember.js]]></title><description><![CDATA[<p>I was working on an Ember.js application recently that required monitoring the status of lists of lists. I needed an observer defined in my controller that would fire every time one of the second level items had a property updated. Simple enough I thought and just tried to nest some <code>@each</code> operators:</p>
+
+<pre><code>doStuff: function() {
+    // - snip -
+}.observers('parents.@each.children.@each.myProperty')
+</code></pre>
+
+<p>This doesn't work. It turns out this is a <a href='https://github.com/emberjs/ember.js/issues/541' >known issue</a> in Ember and doesn't seem like it will be resolved until after the 1.0 official release.</p>
+
+<p>It turns out, there's a pretty easy (though hacky) way of getting around this restriction. Essentially, you need to add a property to your parent items that is updated each time one of the children have their properties updated. Initially, I'll set up my parents and children like so:</p>
+
+<pre><code>App.Parent = Ember.Object.extend({
+    children: null,
+
+    init: function() {
+        this.set('children', []);
+    }
+});
+
+App.Child = Ember.Object.extend({
+    myProperty: null
+});
+</code></pre>
+
+<p><em>Before you ask, the reason why I didn't just set "children"s default value to an empty array is gotcha number 6 in Gordon L. Hempton's <a href='http://codebrief.com/2012/03/eight-ember-dot-js-gotchas-with-workarounds/' >Eight Ember.js Gotchas With Workarounds</a>.</em></p>
+
+<p>In order to get around the "no nested <code>@each</code>" issue, I can just update my <code>Parent</code> object with the following:</p>
+
+<pre><code>App.Parent = Ember.Object.extend({
+    // - snip -
+
+    // now for the hacky part
+    childrenUpdated: 0,
+    watchChildrenUpdate: function() {
+       this.set('childrenUpdated', this.get('childrenUpdated') + 1);
+    }.observes('children.@each.myProperty')
+});
+</code></pre>
+
+<p>All I've done here is just increment a counter each time one of the <code>Parent</code>'s <code>children</code> have their <code>myProperty</code> property modified. Now we can set our initial observer to watch this counter instead:</p>
+
+<pre><code>doStuff: function() {
+    // - snip -
+}.observers('parents.@each.childrenUpdated')
+</code></pre>
+
+<p>Now the observer will fire just like we want it to. Easy.</p>
+
+<p><em>You can check out an <a href='http://jsfiddle.net/drewschrauf/RZYCX/' >example of this on JSFiddle</a>.</em></p>]]></description><link>http://drewschrauf.com/nesting-each-operators-in-ember-js/</link><guid isPermaLink="false">0efb65b9-b78f-4346-b1d4-43e4645a61ce</guid><category><![CDATA[ember]]></category><dc:creator><![CDATA[Drew Schrauf]]></dc:creator><pubDate>Wed, 28 Nov 2012 01:00:00 GMT</pubDate></item><item><title><![CDATA[Writing an Ember.js App From Scratch (Part 2)]]></title><description><![CDATA[<p>In <a href='http://drewschrauf.com/blog/2012/07/08/writing-an-ember-js-app-from-scratch-part-1/' >part 1</a> of this tutorial we began to make a very simple todo app which used Ember to handle all of the logic. If you haven't read it yet, check it out!</p>
+
+<p>Our little todo app is now displaying a couple of prepopulated Todo items with a little counter at the bottom that shows the number of incomplete items. Obviously, a todo app isn't very useful if you can't add your own items to it so that's what we'll dive into next.</p>
+
+<p>As before, our controller is where all of our business logic should be sitting so we'll start by adding a method to our controller which will add a new item to our list.</p>
+
+<pre><code>Todos.Controller = Ember.Object.create({
+    todos: Ember.A(),
+
+    // snip!
+
+    createTodo: function(title) {
+        this.get('todos').addObject(Todos.Todo.create({title: title}));
+    }
+});
+</code></pre>
+
+<p>The function <code>createTodo</code> that we've defined here doesn't really do anything special. It merely takes a string as an input and adds a new item to our <code>todos</code> array with the parameter as the title. The real trick here is hooking it up to our view so that it will be called when the user enters some text into the "New Todo" textbox and hits enter.</p>
+
+<p>If you remember the <code>Ember.Checkbox</code> we used in part 1 to bind a Todo's properties to a view, you can probably guess at where we're going next. We want to replace our "New Todo" <code>&lt;input&gt;</code> tag with an <code>Ember.TextField</code> so that Ember can begin to talk to its value. As we want to do something a little bit fancy with it (i.e. call a method when we hit enter), we'll need to extend Ember's built in class:</p>
+
+<pre><code>Todos.CreateTodoView = Ember.TextField.extend({
+    insertNewline: function() {
+        var value = this.get('value');
+        if (value) {
+            Todos.Controller.createTodo(value);
+            this.set('value', '');
+        }
+    }
+});
+</code></pre>
+
+<p>All we've done here is override the <code>insertNewline</code> method of Ember's TextField to make it call the <code>createTodo</code> method we defined earlier if the user has entered a value. Now that this class has been defined we can drop it into our template to turn this:</p>
+
+<pre><code>&lt;input id="new-todo" placeholder="What needs to be done?" type="text" value=""&gt;
+</code></pre>
+
+<p>…into this:</p>
+
+<pre><code>{{view Todos.CreateTodoView id="new-todo" placeholder="What needs to be done?"}}
+</code></pre>
+
+<p>It doesn't look all that different, does it? The id and placeholder text is still there, we've just told it to use a <code>view</code> (specifically our new <code>Todos.CreateTodoView</code>) to render it. If you reload your app now you'll see that the "New Todo" input box works as advertised. Just enter some text and hit enter and you'll immediately see it show up in the list of todos. Not bad for barely a dozen lines of code. Not only will any new items that get added to the <code>todos</code> array get rendered to our list, our little counter will increment by one to include the new item. That  <code>@each</code> syntax we used on our <code>remainingCount</code> method watches existing items as well as any items that are added or removed from the list.</p>
+
+<p>A simple piece of functionality to knock over next is that "Clear" button we have down the bottom. All it needs to do is remove any Todo items from our array if their <code>isDone</code> property is true. Once again, let's add a method to our controller that can take care of that business logic:</p>
+
+<pre><code>Todos.Controller = Ember.Object.create({
+    todos: Ember.A(),
+
+    // snip!
+
+    clearCompleted: function() {
+        var todos = this.get('todos');
+        todos.removeObjects(todos.filterProperty('isDone'));
+    }
+});
+</code></pre>
+
+<p>Again, this is a ridiculously simple method. We're just filtering our list of Todos just as we did for our <code>remainingCount</code> method and removed these objects from the array. Now we just have to hook it up to our button. As you might have guessed, we'll be using <code>Ember.Button</code> to pull this off:</p>
+
+<pre><code>{{#view Ember.Button target="Todos.Controller" action="clearCompleted"}}
+    Clear 1 completed items
+{{/view}}
+</code></pre>
+
+<p>You'll notice that we've passed in two parameters to this button, the target and the action. The target in this case is our controller and the action is the function we just created. Simple! I'll just go ahead and replace that counter with the real count in the exact same way we dealt with the remaining items counter in part 1.</p>
+
+<p>Finally, we'll complete that last little bit of functionality, "Mark all as complete". We'll do the usual and add a function to the controller to take care of this:</p>
+
+<pre><code>Todos.Controller = Ember.Object.create({
+    todos: Ember.A(),
+
+    // snip!
+
+    markAllComplete: function() {
+        this.get('todos').setEach('isDone', true);
+    }
+});
+</code></pre>
+
+<p>In the template, we're using a checkbox which should only be enabled when there are incomplete items present and when it is clicked it should mark them as done. The checkbox should also be set to false when new items are added (so that the user can click it again). As I said before, views should know how to display themselves and handle their own logic so, instead of dumping all of this logic in the controller, we'll extend Ember's own <code>Ember.Checkbox</code> to encapsulate that logic:</p>
+
+<pre><code>Todos.MarkAllCompleteView = Ember.Checkbox.extend({
+    remainingCountBinding: 'Todos.Controller.remainingCount',
+
+    disabled: function() {
+        return this.get('remainingCount') === 0;
+    }.property('remainingCount'),
+
+    deselect: function() {
+        if (this.get('remainingCount') !== 0) {
+            this.set('value', false);
+        }
+    }.observes('remainingCount'),
+
+    markAllComplete: function() {
+        if (this.get('value')) {
+            Todos.Controller.markAllComplete();
+        }
+    }.observes('value')
+});
+</code></pre>
+
+<p>There are a couple of new concepts introduced here so let's go through them. At the top we can see that we are using a <code>Binding</code>. These are really just shortcuts to other properties in the application and can be defined by giving the property a name ending in the string "Binding". Now, when we want to check the <code>remainingCount</code> we can just go <code>this.get('remainingCount')</code> instead of the longer <code>this.get('Todos.Controller.remainingCount')</code>.</p>
+
+<p>The other new concept is the <a href='http://emberjs.com/documentation/' #toc_observers">observer</a>. These are methods that are automatically triggered when a specific value is updated. In this case you can see that we have a couple of observers that watch the <code>remainingCount</code> and the checkbox's <code>value</code> and then perform the required logic.</p>
+
+<p>We can now complete the app by throwing this custom view into our template instead of the existing checkbox:</p>
+
+<pre><code>&lt;div class="mark-all-done"&gt;
+    {{view Todos.MarkAllCompleteView title="Mark all as complete"}}
+&lt;/div&gt;
+</code></pre>
+
+<p>That's it for this basic todo app. Go and add your first item to it: read the <a href='http://emberjs.com/' >Ember docs</a>!</p>
+
+<p>Let's recap:</p>
+
+<ul>
+<li>Each general function you'd like to perform should be defined in your controller first then called from a view.</li>
+<li>Extend the predefined Ember classes if you want to do anything a little special.</li>
+<li>Use bindings as a shortcut to a property on another object.</li>
+<li>Use observers if you want certain code to be run when a given property updates.</li>
+</ul>
+
+<p>In part 3 we'll get a little more fancy with the views so that we can bind class names that update dynamically.</p>
+
+<p>The project up to this point can be <a href='https://github.com/drewschrauf/todo-example/zipball/e8f75adaa801288befb16dfa61c50597ce332386' >downloaded from Github</a>.</p>]]></description><link>http://drewschrauf.com/writing-an-ember-js-app-from-scratch-part-2/</link><guid isPermaLink="false">f772048d-cbf1-4ee6-b8dd-d0bfdd974023</guid><category><![CDATA[ember]]></category><dc:creator><![CDATA[Drew Schrauf]]></dc:creator><pubDate>Mon, 09 Jul 2012 02:00:00 GMT</pubDate></item><item><title><![CDATA[Writing an Ember.js App From Scratch (Part 1)]]></title><description><![CDATA[<p>I've recently been using <a href='http://emberjs.com/' >Ember.js</a> to streamline my javascript workflow. While I feel that it has cut right down on development time and I'm sure that maintenance will be a tonne easier, the ramp up time to becoming familiar and productive with it is certainly a lot longer than the old jQuery approach. The thought process for planning out an app is certainly a lot more involved but the resulting architecure virtually removes the capacity for <a href='http://en.wikipedia.org/wiki/Spaghetti_code' >spaghetti code</a>.</p>
+
+<p>My biggest complaint with Ember is the lack of "getting started" guides out there. The documentation is phenomonal and there are numerous example projects to peruse, but there seems to be nothing that specifically deals with the process of writing an Ember app from scratch. In order to help other developers get up to speed quickly, I've decided to write up the full process I would take in writing a simple Ember app. To do this, I've decided to write a todo app based heavily off the Ember example from the (amazing) <a href='http://todomvc.com/' >TodoMVC</a> project. I'll take my liberties with the actual code but the thought process is the important part here.</p>
+
+<p>Before we begin, let me mention that I'm far from an Ember guru. Some of the things I've done here may not be best practice either due to my own ignorance or my desire to keep this series simple. At the very least, I hope this tutorial will whet your appetite to explore Ember further to find out how it can make your life easier!</p>
+
+<p>To begin, I've grabbed a copy of the <a href='http://html5boilerplate.com/' >HTML5 Boilerplate</a> and have written the barebones HTML for a todo application.</p>
+
+<pre><code>&lt;div class="content"&gt;
+    &lt;div id="create-todo"&gt;
+        &lt;input id="new-todo" placeholder="What needs to be done?" type="text" value=""&gt;
+    &lt;/div&gt;
+
+    &lt;div id="stats-area"&gt;
+        &lt;div class="mark-all-done"&gt;
+            &lt;label&gt;
+                &lt;input type="checkbox"&gt;Mark all as complete
+            &lt;/label&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+
+    &lt;div id="todos"&gt;
+        &lt;ul id="todo-list"&gt;
+            &lt;li&gt;
+                &lt;label&gt;&lt;input type="checkbox" checked="checked"&gt;This is an item&lt;/label&gt;
+            &lt;/li&gt;
+            &lt;li&gt;
+                &lt;label&gt;&lt;input type="checkbox"&gt;This is another item&lt;/label&gt;
+            &lt;/li&gt;
+        &lt;/ul&gt;
+    &lt;/div&gt;
+
+    &lt;div id="todo-stats"&gt;
+        &lt;button type="button"&gt;
+            Clear 1 completed items
+        &lt;/button&gt;
+        1 items left
+    &lt;/div&gt;      
+&lt;/div&gt;
+</code></pre>
+
+<p>This example is intentionally extremely simple but will allow us to cover quite a few nifty features of Ember. The example HTML is split into four divs; one to create a new todo, one for utilities, one to display all of the todos and one to show stats about existing todos. The example also has a couple of items in there which we will soon replace with dynamic data.</p>
+
+<p>To begin, we start by considering the <a href='http://en.wikipedia.org/wiki/Model%E2%80%93view%E2%80%93controller' >MVC architecture</a> imposed by Ember:</p>
+
+<ul>
+<li>The Model: These are the items that we are working with. We want them to be completely dumb and aware of only their own properties and state. In this case, the smallest item we are working with is a single todo item and we'll need to be able to track its title and a boolean representing whether or not it has been completed.</li>
+<li>The View: This is the part of the app that is in charge of rendering out the relevant information based on our model. Views should also be reasonably dumb and merely aware of how to display themselves and how to route interactions with themselves to the appropriate business logic. My experience with defining views is to just add them as I need them. Their use should become more apparent as we continue.</li>
+<li>The Controller: This is the beating heart of the app. The controller (or controller<strong>s</strong> in more complicated apps) stores a reference to the created models and is in charge of carrying out any business logic that is necessary. In our case, we can probably get away with a single controller that has a list of todo items and a few operations for interacting with them.</li>
+</ul>
+
+<p>Once we have broken down the application into its constituent parts, we can start writing our JS file:</p>
+
+<pre><code>// We always create an Ember application in the first line
+Todos = Ember.Application.create();
+
+// Then we define our models which *extend* Ember.Object (so we can create instances)
+Todos.Todo = Ember.Object.extend({
+    title: null,
+    isDone: false
+});
+
+// And finally we define a skeleton for our controller
+// In this case we *create* an Ember.Object as we only want one of these objects and it should be created immediately
+Todos.Controller = Ember.Object.create({
+    // We need an array to hold our Todo objects
+    todos: Ember.A(),
+
+    // We also override the default init function to prepopulate some testing data
+    init: function() {
+        // Properties have to be accessed through their getters and setters
+        var items = this.get('todos');
+        items.addObject(Todos.Todo.create({title: 'This is an Ember item'}));
+        items.addObject(Todos.Todo.create({title: 'This is another Ember item'}));
+    }
+});
+</code></pre>
+
+<p>We now have a super simple controller that is storing two Todo objects. Already, our data structure is done and we can start adding dynamic views to display this data. To begin we need to wrap the entire dynamic section of the app in a <a href='http://handlebarsjs.com/' >Handlebars</a> script tag:</p>
+
+<pre><code>&lt;script type="text/x-handlebars"&gt;
+    &lt;div id="create-todo"&gt;
+
+    &lt;!-- snip! --&gt;
+
+        1 item left
+    &lt;/div&gt;
+&lt;/script&gt;
+</code></pre>
+
+<p>Reloading the page now won't appear to do anything but, infact, Ember has taken over rendering our UI using Handlebars templates and we can start binding the fields to our controller. The first thing we want to use this power for is replace our dummy items in the template with the real items from our controller. We'll just pop in an <code>each</code> iterator to loop over our objects:</p>
+
+<pre><code>&lt;ul id="todo-list"&gt;
+    {{#each Todos.Controller.todos}}
+        &lt;li&gt;
+            {{view Ember.Checkbox titleBinding="title" valueBinding="isDone"}}
+        &lt;/li&gt;
+    {{/each}}
+&lt;/ul&gt;
+</code></pre>
+
+<p>We've now replaced the static list items with an <code>each</code> iterator and put something approximating our original markup inside of it. <code>each</code> iterates over whatever enumerable is passed to it, which in this case is our array of Todos we have in our controller. We've also replaced the entire <code>label</code>/<code>input</code> block of our original markup with one of Ember's predefined views, <code>Ember.Checkbox</code>. This is displaying the <code>title</code> of the current object as its label and using the <code>isDone</code> property of the current object as the value. When using HTML inputs like this, we almost always want to replace them with their Ember counterpart so that Ember knows what to do when its value is updated. The best part is, these items are directly bound to their respective objects so when the DOM is updated the model is too! Refreshing the page now will replace our original, static todo items with these dynamic ones.</p>
+
+<p>To round the first part of this tutorial out, we'll make that little "items left" label at the bottom of the screen update dynamically so that we can see what affect our interactions are having on our model. In order to do this, we'll need to add a <a href='http://emberjs.com/documentation/' #toc_computed-properties-getters">computed property</a> to our controller which returns the number of remaining items. Computed properties are functions that are accessed just like regular properties but will automatically update themselves based on a given criteria.</p>
+
+<p>I typically like to think of the relationship between properties and computed properties almost as a spreadsheet. Most people are familiar with using Excel equations like <code>=SUM(A:A)</code> to automatically update a particular field when a different cell is modified. Computed properties do the exact same thing but allow you to get much more complicated with the logic. The dumber you leave your actual model and rely more on computed properties, the easier it's going to be to tweak logic during maintenance.</p>
+
+<p>In our case, we'd like the count of remaining items to update every time an item is checked off. We'll use the <code>filterProperty</code> method of Ember arrays (which we're using to store our list of Todo items) to filter down the list and then we'll return the length of the resulting array.</p>
+
+<pre><code>Todos.Controller = Ember.Object.create({
+    todos: Ember.A(),
+
+    // snip!
+
+    remainingCount: function() {
+        return this.get('todos').filterProperty('isDone', false).length;
+    }.property('todos.@each.isDone')
+});
+</code></pre>
+
+<p>To make the <code>remainingCount</code> function act as a computed property we've simply added <code>.property()</code> to the end of the function and passed in, as a parameter, an expression describing the fields we want to watch. In this case, we want to watch the <code>isDone</code> property of all of the Todo items so we use the <code>@each</code> syntax to keep an eye on all of objects in the list. We can then reference this count from our template just by replacing the hardcoded "2 items left" in our template with:</p>
+
+<pre><code>{{Todos.Controller.remainingCount}} items left
+</code></pre>
+
+<p>Now, when we check a the <code>isDone</code> checkbox on a Todo item, the count at the bottom is automatically updated to reflect this. Pretty cool, huh?</p>
+
+<p>Let's recap:</p>
+
+<ul>
+<li>Build your template first in straight HTML while you're learning Ember.</li>
+<li>Separate your architecture into a dumb model, views and a smart controller.</li>
+<li>Make your model as simple as possible and use computer properties to infer any additional data.</li>
+<li>Replace your input controls with their Ember counterparts.</li>
+</ul>
+
+<p>In <a href='http://drewschrauf.com/blog/2012/07/09/writing-an-ember-js-app-from-scratch-part-2/' >part 2</a> we'll give our app the ability to create new Todo items and hook up the rest of the controls.</p>
+
+<p>The project up to this point can be <a href='https://github.com/drewschrauf/todo-example/zipball/4b86edb24bd895d8114d8aca4ee18d8d8c86d2fb' >downloaded from Github</a>.</p>]]></description><link>http://drewschrauf.com/writing-an-ember-js-app-from-scratch-part-1/</link><guid isPermaLink="false">258f7889-2215-4165-ae34-ffdbd3187c18</guid><category><![CDATA[ember]]></category><dc:creator><![CDATA[Drew Schrauf]]></dc:creator><pubDate>Sun, 08 Jul 2012 02:00:00 GMT</pubDate></item><item><title><![CDATA[Javascript Wordcount That Works]]></title><description><![CDATA[<p>Recently I had to make some forms for a site I was working on. This site required textareas for long-form responses with a wordcount displayed underneath so that the user was aware of how many words they had left. Not wanting to write this myself I went online to find a decent jQuery plugin to do it for me but found that they almost all feel victim to the same issue. Behold the (incorrect) code below:</p>
+
+<pre><code># Don't use this code...
+var content = $('#my-textarea').val();
+var numWords = jQuery.trim(content).split(' ').length;
+if(content === '') {
+    numWords = 0;
+}
+</code></pre>
+
+<p>Most plugins I came across were a riff on the same theme; split the textarea's content on spaces and either find the length or fallback on zero if there's no content. Due to the way javascript split works, this code has numerous issues:</p>
+
+<ol>
+<li>A double space will insert an extra word according to this algorithm. These are commonly used after a full stop.  </li>
+<li>Words on lines by themselves will not be counted.  </li>
+<li>A leading space or newline will increment the true wordcount by one.</li>
+</ol>
+
+<p>Clearly performing a split on spaces is not the ideal solution in this situation. I decided to break out my old friend, the regex to solve these issues. What I came up was the below:</p>
+
+<pre><code># ...use this instead!
+var content = $('#my-textarea').val();
+var matches = content.match(/\S+\s*/g);
+var numWords = matches !== null ? matches.length : 0;
+</code></pre>
+
+<p>The business end of this alternative, <code>/\S+\s*/g</code> might look a little scary to people that aren't familiar with regexes. This is probably what drove them away to instead use <code>string.split</code> in the first place. To put their fears to rest, lets break this down:</p>
+
+<ul>
+<li><code>/</code> starts the regex.</li>
+<li><code>\S+</code> looks for one or more non-whitespace characters in order to pull out the words.</li>
+<li><code>\s*</code> looks for zero or more whitespace characters to find the word boundaries. Why zero or more? So that the last word matches too.</li>
+<li><code>/g</code> ends the regex and ensures that newline characters are included in the whitespace search.</li>
+</ul>
+
+<p>All together, this regex simply looks for things that aren't spaces possibly followed by things that are. A <code>null</code> is returned if no matches are found so we use a ternary operation to return a zero if necessary.</p>
+
+<p>The moral of this story is twofold:</p>
+
+<ol>
+<li>Don't just test your code for general use, check the edge cases too. This goes double if you plan to release it as a plugin for other people to use.  </li>
+<li>Don't be afraid to use regexes, they may just save your life one day.</li>
+</ol>]]></description><link>http://drewschrauf.com/javascript-wordcount-that-works/</link><guid isPermaLink="false">6e0c58c8-29dc-449c-9388-11892b18d708</guid><category><![CDATA[javascript]]></category><dc:creator><![CDATA[Drew Schrauf]]></dc:creator><pubDate>Wed, 13 Jun 2012 02:00:00 GMT</pubDate></item><item><title><![CDATA[The Illusion of Choice]]></title><description><![CDATA[<p><em>I should say right from the top that this isn't another blog post whining about the Mass Effect 3 ending. The issues I had with Mass Effect stretch all the way back through the series and, in fact, are common to almost every game that sells itself on your ability to choose your own destiny.</em></p>
+
+<p>Games, like movies before them, are a form of escapism. They give you the chance to do things you wouldn't ordinarily be able to do in real life. This might be flying a SPAD in a dogfight during World War I, saving the world (again) from imminent destruction by an alien race or take the role of your favourite superhero fighting for truth, justice and the American way. Games like <a href='http://www.giantbomb.com/mass-effect/62-560/' >Mass Effect</a>, <a href='http://www.giantbomb.com/dragon-age/62-1609/' >Dragon Age</a> and <a href='http://www.giantbomb.com/heavy-rain/61-21304/' >Heavy Rain</a> appeal to me because they promise to give me a new way to challenge myself. By weaving a deep and intense fiction and cast of characters then giving me the power to make choices that affect the world I've come to love, they are capable of making an impact on me far greater than any book or movie possibly could.</p>
+
+<p>There are two main ways that people like to approach games such as these. The first is to stay true to the game's role playing roots and assume a new identity along with a rich backstory and motivation. The second is to drop themselves into these games playing as closely to their own moral code as possible. Both play styles are valid but are still vulnerable to the same issue.</p>
+
+<p>My problem with these games rears its ugly head when the game decides to enforce a "correct" way to play. It may not do it in as many words but as soon as the game offers rewards outside story beats for making only "good" or "evil" choices, the entire notion of giving the player a choice goes out the window. Gamers, by nature, are problem problem solvers. They have been programmed by the long history of videogames to look for a way to win. While its possible for a gamer to ignore the gameplay benefits of playing a "perfect" game, to many this seems like intentionally choosing to pick a sub-superior path through the game. When given a way to win, gamers will almost always instinctually pick that path.</p>
+
+<p><a href='http://www.giantbomb.com/mass-effect-2/61-21590/' >Mass Effect 2</a> was particularly guilty of this issue. By opening up new conversation options for consistently choosing the "good" or "evil" options, they essentially gave you a Get out of Jail Free card for many of the most difficult decisions. Numerous times throughout the story you were faced with potentially difficult choices that could affect not only the fiction but had gameplay impacts too. However, if a player had attempted to play a "perfect" game up to that point, Mass Effect 2 frequently gave the player a dialogue option that completely skipped the need to make a decision and allowed them continue without any negative impact, story-wise or other.</p>
+
+<p>One example of this was solving numerous arguments between your crew members. The motley crew that travelled with you throughout the universe was comprised of humans and aliens from all corners of the galaxy, each with their own prejudices and motivations. It makes sense that two crew members from races that were long-time enemies would argue and give you an ultimatum stating "it's me or them". Having become quite attached to both of these characters over the 30+ hour game, making a choice such as this promised to be difficult and challenge my own moral code. Gamers that had stuck to playing strictly "good" or "evil" though were given a dialogue option that convinced both crew members to get past their differences and focus their attention on the greater enemy threatening the universe, essentially allowing them to skip the choice altogether.</p>
+
+<p>This issue isn't at all unique to Mass Effect. Game developers in general seem to have an innate desire to provide the player with a winning move, even at the expense of the integrity of their own creative work. It's a shame, as games have the potential to deliver so much more than movies or books are capable of. I'm looking forward to an developer, perhaps an indie dev with less more of a desire to do something new, coming in to fill this gaping whole in game design philosophy.</p>
+
+<p>So, my plea to developers is simple. <strong>Force me to make those hard choices</strong>. Sure, you're making a game and a notion of "winning" typically goes along with that but when you give me a way of gaming the system, as it were, you completely undermine the experience you're trying to create. Problems without a correct answer are usually the most interesting.</p>]]></description><link>http://drewschrauf.com/the-illusion-of-choice/</link><guid isPermaLink="false">97430fb9-89f9-4987-afb1-f055e699f1d8</guid><category><![CDATA[games]]></category><dc:creator><![CDATA[Drew Schrauf]]></dc:creator><pubDate>Wed, 04 Apr 2012 02:00:00 GMT</pubDate></item><item><title><![CDATA[Robotronic v0.1 Released]]></title><description><![CDATA[<p>The Android API is pretty great. For as much flack as Java seems to get for being "uncool", you do get a lot of power without having to worry too much about memory management and other low level nasties. Unfortunately, the simple task of fetching data from a feed and doing something with the result is a little more difficult than it needs to be. Programmers have to worry about <code>Thread</code>s and caching themselves and I've seen more than one app lock up while a whole list of images is loaded using the UI thread. I'm of the opinion that the most commonly performed tasks should be the easiest to code so I created a little library to make these tasks as simple as they sound. It's called Robotronic, version 0.1 has been released and it's on <a href='https://github.com/drewschrauf/robotronic' >GitHub</a> now.</p>
+
+<p>Robotronic aims to make these common tasks like pulling data down from a feed or fetching an image from a server idiot proof. It handles all of the boilerplate threading and caching itself and leaves the programmer to simply decide what to do with the data when it's available. In fact, fetching data in a background thread and caching the result is now a one-liner:</p>
+
+<pre><code>getThreadHandler().makeDataDownloader("http://example.com/myfeed", handler);
+</code></pre>
+
+<p>That's it really. The beauty of using a <code>Handler</code> to deal with the results is twofold. One, it can be called asynchronously which leaves your UI snappy and two, it can be called more than once. In fact, each call you make to <code>makeDataDownloader</code> returns up to twice. The first time is directly from the cache so that data can be made available immediately and the second time is once the 3G finally gets around to pulling fresh data down. To the user it appears that the screen is how they left it without the programmer having to worry about explicitly handling that. I, for one, hate staring at a throbber and with Robotronic that issue is gone.</p>
+
+<p>All of the caching is done on a per URL basis so you can decide to cache the data from a commonly accessed source (like a news feed) but not to bother with more obscure ones (like individual articles). You still get all of the niceties like threading and image in-memory caching for free.</p>
+
+<p>Robotronic can also handle binary files and even has a shortcut for binding <code>ImageView</code>s to remote images. More examples of how Robotronic can be used can be found on the Github <a href='https://github.com/drewschrauf/robotronic/wiki' >wiki</a>. It's still brand new and in heavy development so I'm all ears if you want to suggest a feature or send me a pull request.</p>]]></description><link>http://drewschrauf.com/robotronic-v0-1-released/</link><guid isPermaLink="false">ece60a54-a245-43f9-8227-accc5799cd3f</guid><category><![CDATA[robotronic]]></category><category><![CDATA[android]]></category><dc:creator><![CDATA[Drew Schrauf]]></dc:creator><pubDate>Mon, 22 Aug 2011 02:00:00 GMT</pubDate></item><item><title><![CDATA[Knowing Is Not the Battle]]></title><description><![CDATA[<p>So, I finally decided to give this blogging thing a try and, like any good programmer, I spent far too much time picking a blogging platform. While <a href='http://wordpress.com/' >Wordpress</a> and <a href='http://tumblr.com/' >Tumblr</a> seem to be the current favourites, I wanted something that was a little easier to configure and manage. As I searched, I stumbled across a new wave of blogging engines known as static site generators (SSGs) which generate a static website from a set of input files. SSGs give you less out of the box for free but keep things nice and simple.</p>
+
+<p>This simplicity seems to attract a lot of people looking for the same things as I was but there is also another crowd being drawn in. More than a few times I saw commenters champion these systems because they "don't like using systems they don't completely understand". If this is you then you're <strong>doing it wrong</strong>.</p>
+
+<p>Now, there are plenty of reasons why you might want to go with a more simple solution than that offered by Wordpress and its contemporaries. My personal checklist was:</p>
+
+<ul>
+<li>easy to setup (locally and on the server)</li>
+<li>easy to backup</li>
+<li><p>easy to theme</p>
+
+<p>I eventually settled on <a href='http://octopress.org/' >Octopress</a>, a SSG based on <a href='http://http//jekyllrb.com/' >Jekyll</a> that ticked all of these boxes. Octopress also has another characteristic, the framework is small enough to understand in its entirety. It's so simple in fact that some people seem to believe that's <em>why</em> it exists. This is dangerous thinking for a programmer. Just because you <em>can</em> understand something, doesn't mean that you should.</p>
+
+<p>What's that? I'm encouraging ignorance? Well, not really. There are plenty of things that you use every day that you don't understand entirely and that you shouldn't have to. The world is full of abstractions that hide the details of complex systems, exposing only the parts you need to interact with. When you flick your light switch, your lights turn on. When you turn on your tap, water flows out. Even something as complex as driving a car is abstracted down to two pedals (go faster, go slower) and a wheel for steering. You shouldn't need to see past these abstractions until something goes wrong. When it does, that's the time to break out the manual (or call a professional).</p>
+
+<p>When a programmer says they don't want to use a software platform just because they don't understand how it works, I always feel that they're missing the point. Even if someone was able to understand the workings of Jekyll in their entirety (and that's not a huge stretch), what about the language it's written in, Ruby? And from there, the operating system it's running on? The instructions executed by the CPU? How the electricity is generated that allows the computer to run in the first place? Being a programmer necessitates an ability to draw a line at how much you need to know. Every good programmer draws a line in their knowledge somewhere and that's ok. The important thing is that you draw the line at where you <strong>need</strong> to understand to, not where you <strong>can</strong>.</p>
+
+<p>So, when you find yourself digging into the bowels of a new system, be it software or anything else, ask yourself: Is this something you really need to know? Maybe knowing the bare minimum is good enough?</p></li>
+</ul>]]></description><link>http://drewschrauf.com/knowing-is-not-the-battle/</link><guid isPermaLink="false">c278224b-e440-48d6-ae03-63560b71bd24</guid><category><![CDATA[abstraction]]></category><category><![CDATA[octopress]]></category><dc:creator><![CDATA[Drew Schrauf]]></dc:creator><pubDate>Wed, 10 Aug 2011 02:00:00 GMT</pubDate></item></channel></rss>

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html" charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+
+    <title>Writing an Ember.js App From Scratch (Part 2)</title>
+    <meta name="description" content="" />
+
+    <meta name="HandheldFriendly" content="True" />
+    <meta name="MobileOptimized" content="320" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="stylesheet" type="text/css" href="../assets/css/normalize.css" />
+    <link rel="stylesheet" type="text/css" href="../assets/css/screen.css" />
+
+    <meta name="generator" content="Ghost 0.4" />
+<link rel="alternate" type="application/rss+xml" title="Drew Schrauf" href="../rss/index.html">
+<link rel="canonical" href="../blog/2012/07/09/writing-an-ember-js-app-from-scratch-part-2/index.html" />
+</head>
+<body class="post-template tag-ember">
+
+    
+
+<header id="site-head">
+    
+    <h1 class="blog-title"><a href="../index.html">Drew Schrauf</a></h1>
+</header>
+
+<main class="content" role="main">
+
+    <article class="post tag-ember">
+
+        
+
+        <header>
+        <div class="post-meta tags">Posted in ember</div>
+        <h1 class="post-title">Writing an Ember.js App From Scratch (Part 2)</h1>
+        <div class="post-meta"><time datetime="2012-07-09">Monday, July 09, 2012</time></div>
+        </header>
+
+        <section class="post-content">
+            <p>In <a href="../blog/2012/07/08/writing-an-ember-js-app-from-scratch-part-1/index.html">part 1</a> of this tutorial we began to make a very simple todo app which used Ember to handle all of the logic. If you haven't read it yet, check it out!</p>
+
+<p>Our little todo app is now displaying a couple of prepopulated Todo items with a little counter at the bottom that shows the number of incomplete items. Obviously, a todo app isn't very useful if you can't add your own items to it so that's what we'll dive into next.</p>
+
+<p>As before, our controller is where all of our business logic should be sitting so we'll start by adding a method to our controller which will add a new item to our list.</p>
+
+<pre><code>Todos.Controller = Ember.Object.create({
+    todos: Ember.A(),
+
+    // snip!
+
+    createTodo: function(title) {
+        this.get('todos').addObject(Todos.Todo.create({title: title}));
+    }
+});
+</code></pre>
+
+<p>The function <code>createTodo</code> that we've defined here doesn't really do anything special. It merely takes a string as an input and adds a new item to our <code>todos</code> array with the parameter as the title. The real trick here is hooking it up to our view so that it will be called when the user enters some text into the "New Todo" textbox and hits enter.</p>
+
+<p>If you remember the <code>Ember.Checkbox</code> we used in part 1 to bind a Todo's properties to a view, you can probably guess at where we're going next. We want to replace our "New Todo" <code>&lt;input&gt;</code> tag with an <code>Ember.TextField</code> so that Ember can begin to talk to its value. As we want to do something a little bit fancy with it (i.e. call a method when we hit enter), we'll need to extend Ember's built in class:</p>
+
+<pre><code>Todos.CreateTodoView = Ember.TextField.extend({
+    insertNewline: function() {
+        var value = this.get('value');
+        if (value) {
+            Todos.Controller.createTodo(value);
+            this.set('value', '');
+        }
+    }
+});
+</code></pre>
+
+<p>All we've done here is override the <code>insertNewline</code> method of Ember's TextField to make it call the <code>createTodo</code> method we defined earlier if the user has entered a value. Now that this class has been defined we can drop it into our template to turn this:</p>
+
+<pre><code>&lt;input id="new-todo" placeholder="What needs to be done?" type="text" value=""&gt;
+</code></pre>
+
+<p>…into this:</p>
+
+<pre><code>{{view Todos.CreateTodoView id="new-todo" placeholder="What needs to be done?"}}
+</code></pre>
+
+<p>It doesn't look all that different, does it? The id and placeholder text is still there, we've just told it to use a <code>view</code> (specifically our new <code>Todos.CreateTodoView</code>) to render it. If you reload your app now you'll see that the "New Todo" input box works as advertised. Just enter some text and hit enter and you'll immediately see it show up in the list of todos. Not bad for barely a dozen lines of code. Not only will any new items that get added to the <code>todos</code> array get rendered to our list, our little counter will increment by one to include the new item. That  <code>@each</code> syntax we used on our <code>remainingCount</code> method watches existing items as well as any items that are added or removed from the list.</p>
+
+<p>A simple piece of functionality to knock over next is that "Clear" button we have down the bottom. All it needs to do is remove any Todo items from our array if their <code>isDone</code> property is true. Once again, let's add a method to our controller that can take care of that business logic:</p>
+
+<pre><code>Todos.Controller = Ember.Object.create({
+    todos: Ember.A(),
+
+    // snip!
+
+    clearCompleted: function() {
+        var todos = this.get('todos');
+        todos.removeObjects(todos.filterProperty('isDone'));
+    }
+});
+</code></pre>
+
+<p>Again, this is a ridiculously simple method. We're just filtering our list of Todos just as we did for our <code>remainingCount</code> method and removed these objects from the array. Now we just have to hook it up to our button. As you might have guessed, we'll be using <code>Ember.Button</code> to pull this off:</p>
+
+<pre><code>{{#view Ember.Button target="Todos.Controller" action="clearCompleted"}}
+    Clear 1 completed items
+{{/view}}
+</code></pre>
+
+<p>You'll notice that we've passed in two parameters to this button, the target and the action. The target in this case is our controller and the action is the function we just created. Simple! I'll just go ahead and replace that counter with the real count in the exact same way we dealt with the remaining items counter in part 1.</p>
+
+<p>Finally, we'll complete that last little bit of functionality, "Mark all as complete". We'll do the usual and add a function to the controller to take care of this:</p>
+
+<pre><code>Todos.Controller = Ember.Object.create({
+    todos: Ember.A(),
+
+    // snip!
+
+    markAllComplete: function() {
+        this.get('todos').setEach('isDone', true);
+    }
+});
+</code></pre>
+
+<p>In the template, we're using a checkbox which should only be enabled when there are incomplete items present and when it is clicked it should mark them as done. The checkbox should also be set to false when new items are added (so that the user can click it again). As I said before, views should know how to display themselves and handle their own logic so, instead of dumping all of this logic in the controller, we'll extend Ember's own <code>Ember.Checkbox</code> to encapsulate that logic:</p>
+
+<pre><code>Todos.MarkAllCompleteView = Ember.Checkbox.extend({
+    remainingCountBinding: 'Todos.Controller.remainingCount',
+
+    disabled: function() {
+        return this.get('remainingCount') === 0;
+    }.property('remainingCount'),
+
+    deselect: function() {
+        if (this.get('remainingCount') !== 0) {
+            this.set('value', false);
+        }
+    }.observes('remainingCount'),
+
+    markAllComplete: function() {
+        if (this.get('value')) {
+            Todos.Controller.markAllComplete();
+        }
+    }.observes('value')
+});
+</code></pre>
+
+<p>There are a couple of new concepts introduced here so let's go through them. At the top we can see that we are using a <code>Binding</code>. These are really just shortcuts to other properties in the application and can be defined by giving the property a name ending in the string "Binding". Now, when we want to check the <code>remainingCount</code> we can just go <code>this.get('remainingCount')</code> instead of the longer <code>this.get('Todos.Controller.remainingCount')</code>.</p>
+
+<p>The other new concept is the <a href="http://emberjs.com/documentation/#toc_observers">observer</a>. These are methods that are automatically triggered when a specific value is updated. In this case you can see that we have a couple of observers that watch the <code>remainingCount</code> and the checkbox's <code>value</code> and then perform the required logic.</p>
+
+<p>We can now complete the app by throwing this custom view into our template instead of the existing checkbox:</p>
+
+<pre><code>&lt;div class="mark-all-done"&gt;
+    {{view Todos.MarkAllCompleteView title="Mark all as complete"}}
+&lt;/div&gt;
+</code></pre>
+
+<p>That's it for this basic todo app. Go and add your first item to it: read the <a href="http://emberjs.com/">Ember docs</a>!</p>
+
+<p>Let's recap:</p>
+
+<ul>
+<li>Each general function you'd like to perform should be defined in your controller first then called from a view.</li>
+<li>Extend the predefined Ember classes if you want to do anything a little special.</li>
+<li>Use bindings as a shortcut to a property on another object.</li>
+<li>Use observers if you want certain code to be run when a given property updates.</li>
+</ul>
+
+<p>In part 3 we'll get a little more fancy with the views so that we can bind class names that update dynamically.</p>
+
+<p>The project up to this point can be <a href="https://github.com/drewschrauf/todo-example/zipball/e8f75adaa801288befb16dfa61c50597ce332386">downloaded from Github</a>.</p>
+        </section>
+
+        <section class="share">
+            <p class="info">Share this post</p>
+            <a class="icon-twitter" href="http://twitter.com/share?text=Writing an Ember.js App From Scratch (Part 2)&url=http://drewschrauf.com/writing-an-ember-js-app-from-scratch-part-2/"
+                onclick="window.open(this.href, 'twitter-share', 'width=550,height=235');return false;">
+                <span class="hidden">Twitter</span>
+            </a>
+            <a class="icon-facebook" href="https://www.facebook.com/sharer/sharer.php?u=http://drewschrauf.com/writing-an-ember-js-app-from-scratch-part-2/"
+                onclick="window.open(this.href, 'facebook-share','width=580,height=296');return false;">
+                <span class="hidden">Facebook</span>
+            </a>
+            <a class="icon-google-plus" href="https://plus.google.com/share?url=http://drewschrauf.com/writing-an-ember-js-app-from-scratch-part-2/"
+               onclick="window.open(this.href, 'google-plus-share', 'width=490,height=530');return false;">
+                <span class="hidden">Google+</span>
+            </a>
+        </section>
+
+        <footer class="post-footer">
+
+            
+            <section class="author">
+                <div class="authorimage" style="background: url(../content/images/2014/Jan/drew.jpeg)"></div>
+                <p class="attr">Author</p>
+                <h4><a href="../blog/2012/07/09/writing-an-ember-js-app-from-scratch-part-2/index.html">Drew Schrauf</a></h4>
+                <p class="bio"></p>
+            </section>
+            
+
+        </footer>
+
+        
+    
+    <!-- Disqus comments -->
+    <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'drewschrauf';
+        
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        var disqus_identifier = '7';
+
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+    <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+    </article>
+
+</main>
+
+
+    <footer class="site-footer">
+        <div class="inner">
+             <section class="copyright">&copy; 2014 <a href="../index.html">Drew Schrauf</a>. All rights reserved.</section>
+             <section>Theme based on Vapor theme by <a href="http://sethlilly.com/">Seth Lilly</a></section>
+             <section class="poweredby">Proudly published with <a class="icon-ghost" href="http://ghost.org"><span class="hidden">Ghost</span></a></section>
+        </div>
+    </footer>
+
+    <script src="../shared/vendor/jquery/jquery.js?v=65a568c02f"></script>
+
+    <script type="text/javascript" src="../assets/js/index.js"></script>
+
+</body>
+</html>

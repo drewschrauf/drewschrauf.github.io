@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html" charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+
+    <title>Robotronic v0.1 Released</title>
+    <meta name="description" content="" />
+
+    <meta name="HandheldFriendly" content="True" />
+    <meta name="MobileOptimized" content="320" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="stylesheet" type="text/css" href="../assets/css/normalize.css" />
+    <link rel="stylesheet" type="text/css" href="../assets/css/screen.css" />
+
+    <meta name="generator" content="Ghost 0.4" />
+<link rel="alternate" type="application/rss+xml" title="Drew Schrauf" href="../rss/index.html">
+<link rel="canonical" href="index.html" />
+</head>
+<body class="post-template tag-robotronic tag-android">
+
+    
+
+<header id="site-head">
+    
+    <h1 class="blog-title"><a href="../index.html">Drew Schrauf</a></h1>
+</header>
+
+<main class="content" role="main">
+
+    <article class="post tag-robotronic tag-android">
+
+        
+
+        <header>
+        <div class="post-meta tags">Posted in robotronic, android</div>
+        <h1 class="post-title">Robotronic v0.1 Released</h1>
+        <div class="post-meta"><time datetime="2011-08-22">Monday, August 22, 2011</time></div>
+        </header>
+
+        <section class="post-content">
+            <p>The Android API is pretty great. For as much flack as Java seems to get for being "uncool", you do get a lot of power without having to worry too much about memory management and other low level nasties. Unfortunately, the simple task of fetching data from a feed and doing something with the result is a little more difficult than it needs to be. Programmers have to worry about <code>Thread</code>s and caching themselves and I've seen more than one app lock up while a whole list of images is loaded using the UI thread. I'm of the opinion that the most commonly performed tasks should be the easiest to code so I created a little library to make these tasks as simple as they sound. It's called Robotronic, version 0.1 has been released and it's on <a href="https://github.com/drewschrauf/robotronic">GitHub</a> now.</p>
+
+<p>Robotronic aims to make these common tasks like pulling data down from a feed or fetching an image from a server idiot proof. It handles all of the boilerplate threading and caching itself and leaves the programmer to simply decide what to do with the data when it's available. In fact, fetching data in a background thread and caching the result is now a one-liner:</p>
+
+<pre><code>getThreadHandler().makeDataDownloader("http://example.com/myfeed", handler);
+</code></pre>
+
+<p>That's it really. The beauty of using a <code>Handler</code> to deal with the results is twofold. One, it can be called asynchronously which leaves your UI snappy and two, it can be called more than once. In fact, each call you make to <code>makeDataDownloader</code> returns up to twice. The first time is directly from the cache so that data can be made available immediately and the second time is once the 3G finally gets around to pulling fresh data down. To the user it appears that the screen is how they left it without the programmer having to worry about explicitly handling that. I, for one, hate staring at a throbber and with Robotronic that issue is gone.</p>
+
+<p>All of the caching is done on a per URL basis so you can decide to cache the data from a commonly accessed source (like a news feed) but not to bother with more obscure ones (like individual articles). You still get all of the niceties like threading and image in-memory caching for free.</p>
+
+<p>Robotronic can also handle binary files and even has a shortcut for binding <code>ImageView</code>s to remote images. More examples of how Robotronic can be used can be found on the Github <a href="https://github.com/drewschrauf/robotronic/wiki">wiki</a>. It's still brand new and in heavy development so I'm all ears if you want to suggest a feature or send me a pull request.</p>
+        </section>
+
+        <section class="share">
+            <p class="info">Share this post</p>
+            <a class="icon-twitter" href="http://twitter.com/share?text=Robotronic v0.1 Released&url=http://drewschrauf.com/robotronic-v0-1-released/"
+                onclick="window.open(this.href, 'twitter-share', 'width=550,height=235');return false;">
+                <span class="hidden">Twitter</span>
+            </a>
+            <a class="icon-facebook" href="https://www.facebook.com/sharer/sharer.php?u=http://drewschrauf.com/robotronic-v0-1-released/"
+                onclick="window.open(this.href, 'facebook-share','width=580,height=296');return false;">
+                <span class="hidden">Facebook</span>
+            </a>
+            <a class="icon-google-plus" href="https://plus.google.com/share?url=http://drewschrauf.com/robotronic-v0-1-released/"
+               onclick="window.open(this.href, 'google-plus-share', 'width=490,height=530');return false;">
+                <span class="hidden">Google+</span>
+            </a>
+        </section>
+
+        <footer class="post-footer">
+
+            
+            <section class="author">
+                <div class="authorimage" style="background: url(../content/images/2014/Jan/drew.jpeg)"></div>
+                <p class="attr">Author</p>
+                <h4><a href="index.html">Drew Schrauf</a></h4>
+                <p class="bio"></p>
+            </section>
+            
+
+        </footer>
+
+        
+    
+    <!-- Disqus comments -->
+    <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'drewschrauf';
+        
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        var disqus_identifier = '2';
+
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+    <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+    </article>
+
+</main>
+
+
+    <footer class="site-footer">
+        <div class="inner">
+             <section class="copyright">&copy; 2014 <a href="../index.html">Drew Schrauf</a>. All rights reserved.</section>
+             <section>Theme based on Vapor theme by <a href="http://sethlilly.com/">Seth Lilly</a></section>
+             <section class="poweredby">Proudly published with <a class="icon-ghost" href="http://ghost.org"><span class="hidden">Ghost</span></a></section>
+        </div>
+    </footer>
+
+    <script src="../shared/vendor/jquery/jquery.js?v=65a568c02f"></script>
+
+    <script type="text/javascript" src="../assets/js/index.js"></script>
+
+</body>
+</html>

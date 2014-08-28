@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html" charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+
+    <title>Javascript Wordcount That Works</title>
+    <meta name="description" content="" />
+
+    <meta name="HandheldFriendly" content="True" />
+    <meta name="MobileOptimized" content="320" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="stylesheet" type="text/css" href="../assets/css/normalize.css" />
+    <link rel="stylesheet" type="text/css" href="../assets/css/screen.css" />
+
+    <meta name="generator" content="Ghost 0.4" />
+<link rel="alternate" type="application/rss+xml" title="Drew Schrauf" href="../rss/index.html">
+<link rel="canonical" href="index.html" />
+</head>
+<body class="post-template tag-javascript">
+
+    
+
+<header id="site-head">
+    
+    <h1 class="blog-title"><a href="../index.html">Drew Schrauf</a></h1>
+</header>
+
+<main class="content" role="main">
+
+    <article class="post tag-javascript">
+
+        
+
+        <header>
+        <div class="post-meta tags">Posted in javascript</div>
+        <h1 class="post-title">Javascript Wordcount That Works</h1>
+        <div class="post-meta"><time datetime="2012-06-13">Wednesday, June 13, 2012</time></div>
+        </header>
+
+        <section class="post-content">
+            <p>Recently I had to make some forms for a site I was working on. This site required textareas for long-form responses with a wordcount displayed underneath so that the user was aware of how many words they had left. Not wanting to write this myself I went online to find a decent jQuery plugin to do it for me but found that they almost all feel victim to the same issue. Behold the (incorrect) code below:</p>
+
+<pre><code># Don't use this code...
+var content = $('#my-textarea').val();
+var numWords = jQuery.trim(content).split(' ').length;
+if(content === '') {
+    numWords = 0;
+}
+</code></pre>
+
+<p>Most plugins I came across were a riff on the same theme; split the textarea's content on spaces and either find the length or fallback on zero if there's no content. Due to the way javascript split works, this code has numerous issues:</p>
+
+<ol>
+<li>A double space will insert an extra word according to this algorithm. These are commonly used after a full stop.  </li>
+<li>Words on lines by themselves will not be counted.  </li>
+<li>A leading space or newline will increment the true wordcount by one.</li>
+</ol>
+
+<p>Clearly performing a split on spaces is not the ideal solution in this situation. I decided to break out my old friend, the regex to solve these issues. What I came up was the below:</p>
+
+<pre><code># ...use this instead!
+var content = $('#my-textarea').val();
+var matches = content.match(/\S+\s*/g);
+var numWords = matches !== null ? matches.length : 0;
+</code></pre>
+
+<p>The business end of this alternative, <code>/\S+\s*/g</code> might look a little scary to people that aren't familiar with regexes. This is probably what drove them away to instead use <code>string.split</code> in the first place. To put their fears to rest, lets break this down:</p>
+
+<ul>
+<li><code>/</code> starts the regex.</li>
+<li><code>\S+</code> looks for one or more non-whitespace characters in order to pull out the words.</li>
+<li><code>\s*</code> looks for zero or more whitespace characters to find the word boundaries. Why zero or more? So that the last word matches too.</li>
+<li><code>/g</code> ends the regex and ensures that newline characters are included in the whitespace search.</li>
+</ul>
+
+<p>All together, this regex simply looks for things that aren't spaces possibly followed by things that are. A <code>null</code> is returned if no matches are found so we use a ternary operation to return a zero if necessary.</p>
+
+<p>The moral of this story is twofold:</p>
+
+<ol>
+<li>Don't just test your code for general use, check the edge cases too. This goes double if you plan to release it as a plugin for other people to use.  </li>
+<li>Don't be afraid to use regexes, they may just save your life one day.</li>
+</ol>
+        </section>
+
+        <section class="share">
+            <p class="info">Share this post</p>
+            <a class="icon-twitter" href="http://twitter.com/share?text=Javascript Wordcount That Works&url=http://drewschrauf.com/javascript-wordcount-that-works/"
+                onclick="window.open(this.href, 'twitter-share', 'width=550,height=235');return false;">
+                <span class="hidden">Twitter</span>
+            </a>
+            <a class="icon-facebook" href="https://www.facebook.com/sharer/sharer.php?u=http://drewschrauf.com/javascript-wordcount-that-works/"
+                onclick="window.open(this.href, 'facebook-share','width=580,height=296');return false;">
+                <span class="hidden">Facebook</span>
+            </a>
+            <a class="icon-google-plus" href="https://plus.google.com/share?url=http://drewschrauf.com/javascript-wordcount-that-works/"
+               onclick="window.open(this.href, 'google-plus-share', 'width=490,height=530');return false;">
+                <span class="hidden">Google+</span>
+            </a>
+        </section>
+
+        <footer class="post-footer">
+
+            
+            <section class="author">
+                <div class="authorimage" style="background: url(../content/images/2014/Jan/drew.jpeg)"></div>
+                <p class="attr">Author</p>
+                <h4><a href="index.html">Drew Schrauf</a></h4>
+                <p class="bio"></p>
+            </section>
+            
+
+        </footer>
+
+        
+    
+    <!-- Disqus comments -->
+    <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'drewschrauf';
+        
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        var disqus_identifier = '5';
+
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+    <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+    </article>
+
+</main>
+
+
+    <footer class="site-footer">
+        <div class="inner">
+             <section class="copyright">&copy; 2014 <a href="../index.html">Drew Schrauf</a>. All rights reserved.</section>
+             <section>Theme based on Vapor theme by <a href="http://sethlilly.com/">Seth Lilly</a></section>
+             <section class="poweredby">Proudly published with <a class="icon-ghost" href="http://ghost.org"><span class="hidden">Ghost</span></a></section>
+        </div>
+    </footer>
+
+    <script src="../shared/vendor/jquery/jquery.js?v=65a568c02f"></script>
+
+    <script type="text/javascript" src="../assets/js/index.js"></script>
+
+</body>
+</html>
